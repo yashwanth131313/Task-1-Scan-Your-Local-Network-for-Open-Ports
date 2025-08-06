@@ -1,1 +1,281 @@
 
+Title:Nmap Scanning Techniques
+Objective: To understand and document various host discovery techniques using Nmap,
+focusing on scanning types, protocol-specific techniques, and TCP header flag usage. This
+document is structured for practical learning and screenshot-based step-by-step validation.
+1. TCP Connect Scan (Vanilla Scan) – Performs a full TCP handshake to check if a
+port is open.
+2. SYN Scan – Sends SYN packets to detect open ports without completing the TCP
+handshake (stealthy).
+3. FIN Scan – Sends a FIN packet to detect closed ports based on RST responses.
+4. Xmas Scan – Sends a TCP packet with FIN, PSH, and URG flags to identify open
+ports on Unix systems.
+5. FTP Bounce Scan – Uses an insecure FTP server to scan ports on another host,
+bypassing firewalls.
+6. Sweep Scan – Scans the same port across multiple IP addresses to find active
+hosts.
+7. Ping Scan – Sends ICMP Echo Requests to identify live hosts on a network.
+TCP Header Flags (Short Scenario-Based)
+1. URG (Urgent) – Marks urgent data; like “yo, read this message NOW before
+anything else”.
+2. PSH (Push) – Tells the receiver to process data immediately (e.g., sending chat
+messages).
+3. FIN – Gracefully ends a TCP connection (used in FIN scans to sneakily probe a
+port).
+4. SYN – Starts a TCP connection (used in SYN scan to check if port replies with
+SYN-ACK).
+5. RST – Forcefully resets the connection if something is wrong (used in scan
+detection).
+6. ACK – Acknowledges receipt of data or a SYN (used in ACK scan to probe firewall
+behavior).
+3. Host Discovery Scans
+3.1 Ping Scan (-sn): Ping scan is used to discover which hosts are up in a network
+without performing a port scan.
+Usage:To quickly identify live hosts in a given subnet or IP range without scanning
+their ports.
+Command Format: nmap -sn <target>
+Example 1: Subnet Scan : nmap -sn 192.168.1.0/24
+Example 2: Specific Host Range : nmap -sn 192.168.1.10-20
+Fig: Ping Scan
+3.2 Ping Scan with --exclude
+This scan pings all hosts in a subnet except the IPs you manually exclude. It helps when
+you know certain systems shouldn't be touched—maybe sensitive devices, monitored hosts,
+or production servers.
+Example Scenario: Let’s say your test range is 192.168.1.0/24, but .5 and .10 are
+production boxes with alerts set up. You can exclude them using --exclude to avoid
+triggering alarms or issues
+Fig: Ping Scan (--Exclude)
+3.3 Ping Scan using List of IPs with -iL
+Command: nmap -sn -iL iplist.txt
+Used For: Scans hosts listed in a file (one IP per line) for live status. Helpful when
+dealing with custom host inventories.
+Fig: Ping Scan with list
+3.4 Ping Scan using No Ping (-Pn)
+This disables host discovery and treats all hosts as online, useful when ping is blocked by
+firewalls or ICMP is disabled.
+Command: nmap -Pn <target>
+ Fig: No Ping Scan
+3.5 Ping Scan using Specific Probe Types (-PS, -PA, -PU, -PY, -PR)
+To perform host discovery using different protocol-specific probes. Useful for evading
+firewalls and detecting hosts in different network configurations.
+Example:
+nmap -PS80,443 192.168.1.0/24
+nmap -PA80,443 192.168.1.0/24
+nmap -PU53 192.168.1.0/24
+nmap -PY 631 192.168.1.0/24
+nmap -PR 192.168.1.0/24
+Fig: Portlist Scans
+3.6 ICMP-Based Ping Scan using PE, PP, PM, PO
+Performs host discovery using various ICMP types: Echo Request (-PE), Timestamp
+Request (-PP), Netmask Request (-PM), and all other types (-PO) for comprehensive
+ICMP-based discovery.
+Command Example: nmap -PE -PP -PM -PO <target>
+3.7 Ping Scan using -n / -R
+Command: nmap -sn -n 192.168.1.0/24
+Purpose:
+○ -n disables reverse DNS resolution for faster scanning.
+○ -R forces reverse DNS resolution to identify hostnames (slower, but
+useful when you need names).
+ Fig: Ping Scan -n/-R
+3.8 Ping Scan using --traceroute
+● Symbol: --traceroute
+● Command: nmap -sn --traceroute 192.168.1.0/24
+● Purpose: Traces the network path to the target host(s) along with host
+discovery.
+● Use Case: Understand network routing, hops, and delays during scan.
+Fig: --traceroute Scan
+● open – A service is actively accepting connections on that port.
+● closed – No service is listening; the port is reachable but not in use.
+● filtered – Nmap can’t tell if the port is open or closed because a firewall or
+filter blocks the probes.
+● unfiltered – The port is reachable, but Nmap can’t determine whether it’s open
+or closed (rare case).
+● open|filtered – Nmap can’t determine if the port is open or filtered; happens in
+UDP or stealth scans.
+● closed|filtered – Nmap can’t tell whether the port is closed or filtered; very
+rare.
+4. Scanning Techniques
+4.1 TCP Connect Scan
+TCP Connect Scan is a basic port scan method that completes the full 3-way
+TCP handshake to determine if a port is open. It is easily detectable but works
+on all systems since it uses the OS’s connect() system call.
+Command: nmap -sT <IP>or<domain>
+Fig: TCP connect Scan
+Note: Use Tcp connect scan when we have root or admin privileges and easily
+Detectable by the firewall
+WorkFlow:
+1. Client Send SYN packet → server
+2. Server Send SYN ACK packet —-> client
+3. Client Send ACK packet —-------> server
+A reliable connection gets establish to communicate safe to send data
+without any error or accurate data transfer
+4.2 SYN Scan (Half-Open Scan):
+Sends SYN → receives SYN-ACK from open ports → immediately sends RST
+to avoid completing handshake.
+works: Sends SYN → receives SYN-ACK from open ports → immediately
+sends RST to avoid completing handshake
+Command: nmap -sS IP
+Fig: Half Open-Scan
+Fast and stealthy since it avoids full TCP connection.
+4.3 UDP Scan:
+UDP Scan: Used to identify open UDP ports by sending empty UDP packets and analyzing
+responses or lack thereof.
+Works:
+● Sends empty UDP packet to target ports.
+● If ICMP port unreachable received → port is closed.
+● If no response → port is open or filtered.
+● Slower and harder to interpret due to no handshake and rate-limiting ICMP.
+Fig: UDP Scan
+4.4 TCP ACK Scan
+TCP ACK Scan is used to map firewall rulesets by determining whether ports are
+filtered or unfiltered. It sends ACK packets and observes the response.
+Command:nmap -sA <target>
+ Fig: TCP ACK SCAN
+Work:
+Sends ACK packets to check if ports are filtered or unfiltered. No handshake
+happens.
+● RST = unfiltered,
+● No reply/ICMP = filtered
+4.5 XMAS Scan (-sX)
+Sends TCP packet with FIN, PSH, URG flags lit — looks like a “lit-up” packet . Only
+works reliably on Unix/Linux systems.
+Workflow:
+● No response = Open|Filtered
+● RST = Closed
+● ICMP Unreachable = Filtered
+Command: nmap -sX <target>
+ Fig: Xmass scan
+4.6 TCP Null Scan : Sends TCP packets with no flags set to bypass firewalls and
+detect open ports.
+works: Closed ports reply with RST; open ports give no response.
+Command: nmap -sN <target>
+ Fig: Null Scan
+4.7 Service Scan
+Detects services and versions running on open ports.
+Command: nmap -sV <IP>
+works: Sends probes to open ports and analyzes responses to determine the
+exact service and version.
+Fig: Finding the version of the services
+4.9 OS Scan
+Detects the operating system of a host.
+Command: nmap -O 192.168.1.1
+works: Analyzes TCP/IP stack responses to different packets and matches
+them with known OS fingerprints. Used to identify target systems for exploit
+compatibility.
+Fig: Operating System detection
+5. Firewall Evasion Techniques
+5.1 Decoy Scan -D and -D RND:
+The -D option in Nmap is used to perform decoy scanning, a technique to
+obfuscate the source of the scan. It works by adding decoy IP addresses
+along with your real IP so that the target system sees multiple sources,
+making it harder to determine the actual attacker.
+● Usage: nmap -D 192.168.1.2,192.168.1.3,ME 192.168.1.1
+● RND: nmap -D RND:10 192.168.1.1 — This sends probes from 10
+randomly spoofed IPs along with your own. It looks like IP spoofing but
+isn’t true spoofing; it just adds confusion for IDS/firewalls.
+Fig:Decoy Scan (-D)
+Fig:Decoy Scan Random ip’s
+5.2 SA Firewall Detection Scan
+A TCP ACK scan (-sA) used to determine firewall rulesets and whether a port
+is filtered.
+Workflow: Sends TCP ACK packets to target ports:
+● If there is no response or an ICMP unreachable error, the port is
+filtered.
+● If a RST (reset) is received, the port is unfiltered (not necessarily
+open).
+Useful to map out firewall rule behavior without checking open/closed port
+status.
+Command: nmap -sA <IP>
+Fig 1: Target with no firewall
+Fig 2: Ack undetected (no firewall)
+Fig 3: Target with firewall
+Fig 4: Ack Detected (firewall)
+5.3 Using -g Option (Spoof Source Port)
+● The -g option in Nmap allows you to set a specific source port for your
+scan packets.
+● Some firewalls and IDS allow packets from certain ports (like port 53 for
+DNS). Spoofing the source port may help bypass such filters.
+● Example: nmap -sS -g 53 192.168.1.10
+● Scenario: Use when you suspect the firewall allows traffic only from
+certain service ports like DNS (53), HTTP (80), etc.
+Fig:using same client port
+5.4 Timing Scan (-T0 to -T5)
+Timing templates in Nmap control how aggressive or stealthy your scan is.
+Useful for evading detection or speeding up scans.
+● -T0 – Paranoid (very slow, IDS evasion)
+● -T1 – Sneaky
+● -T2 – Polite
+● -T3 – Normal (default)
+● -T4 – Aggressive (fast, can trigger detection)
+● -T5 – Insane (maximum speed, high detection risk)
+● Example: nmap -sS -T2 192.168.1.1
+Fig 1: Timing Scans
+5.5 Min-Parallelism Scan
+The --min-parallelism option sets the minimum number of probes that Nmap
+will try to send in parallel.
+Use case: Useful to increase scan speed and performance tuning when scanning
+large networks or when dealing with rate-limited environments.
+Example: nmap --min-parallelism 50 <IP>
+6. Scripting and Banner Grabbing Scans
+6.1 Scripting ftp Scan
+Uses Nmap Scripting Engine (NSE) to run custom scripts for vulnerability
+detection, brute force, and more.
+Command: nmap -p 21 --script=ftpanon.nse <IP>
+Fig: ftp-anon scan to anonymous login
+6.2 SSH Scripting Scan (NSE-based)
+SSH scripting scans use Nmap’s NSE (Nmap Scripting Engine) to run scripts that
+probe for specific details or vulnerabilities related to SSH services.
+Fig: SSH2-algorithm Scan
+6.3 Banner Grabbing
+Banner grabbing is a technique used to capture the initial response or header info
+that a service gives when you connect to its port — this often reveals:
+● The service type
+● Software version
+● OS details
+● Sometimes even misconfigurations or warnings
+ Fig: Banner Grabing Scan
+6.4 HTTP Enumeration Script Scan
+Goal :Discover hidden web directories, applications, technologies, and
+potential attack surfaces exposed via HTTP.
+Script Used: http-enum
+Command: nmap -sV -p 80,443 --script=http-enum <target-ip>
+Fig 1: http-scripts and enumeration scan
+ F Ff
+ Fig 2: find hidden directories
+
+Fig 3: more sub directories
+6.4 SQL Script Scan
+● Command: nmap -p 3306 --script=mysql* <target>
+● Use: Detects MySQL service details, user accounts, and potential misconfigs
+ Fig: Sql Scripts and Scans
+ Fig: Database
+5 FTP Service and Exploitation Scan
+Scans for FTP services and outdated versions
+Command: nmap -p 21 -sV 192.168.29.92
+Goal: Identify insecure FTP configurations and exploitation vectors.
+ Fig: ftp version detection
+ Fig: exploiting the outdated version
+6.6 vulners.nse Script Scan
+vulners.nse is an Nmap script that integrates with the Vulners vulnerability database
+to identify known vulnerabilities (CVE IDs) associated with services running on target
+machines.
+It helps in identifying publicly known vulnerabilities in services based on version
+detection and fingerprinting. This is useful for vulnerability assessment and reporting.
+Command:
+nmap -sV --script vulners <target>
+Example:
+nmap -sV --script vulners 192.168.1.10
+Workflow:
+● Performs service version detection (-sV).
+● Queries the Vulners database through the script.
+● Lists possible vulnerabilities (CVE IDs, severity, and exploit links).
+ Fig: Advance Vulnerability Scan
+Conclusion
+All Nmap scans were executed in a controlled lab environment using Metasploitable2
+as the target. The objective was to practically understand various Nmap scanning
+techniques, including host discovery, service detection, OS fingerprinting, and
+firewall evasion strategies. Each scan was performed with a specific purpose —
+whether to identify open ports, bypass filters, or analyze service behavior. These
+scans help demonstrate how to choose the right technique based on the situation,
+such as evading firewalls, performing stealth scans, or collecting banner/service
+information for exploitation. 
